@@ -29,6 +29,12 @@ plugins/android.json
 plugins/ios.json
 $RECYCLE.BIN/
 
+
+/backend/env
+/backend/venv
+/backend/src/__pycache__
+
+
 .DS_Store
 Thumbs.db
 UserInterfaceState.xcuserstate

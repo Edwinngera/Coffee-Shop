@@ -92,7 +92,7 @@ def check_permissions(permission, payload):
     if permission not in payload["permissions"]:
         raise AuthError({
             "code": "unauthorized",
-            "description": "Permission not found."
+            "description": "No relevant permissions."
         }, 403)
         
     return True
@@ -112,28 +112,8 @@ def check_permissions(permission, payload):
 
     !!NOTE urlopen has a common certificate error described here: https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
 '''
-def verify_decode_jwt(token):
-    json_url = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
-    jwks = json.loads(json_url.read())
-    unverified_header = jwt.get_unverified_header(token)
-    rsa_key = {}
 
-    if 'kid' not in unverified_header:
-        raise AuthError({
-            "code": "invalid_header",
-            "description": "Authorization malformed."
-        }, 401)
-
-    for key in jwks["keys"]:
-        if unverified_header["kid"] == key["kid"]:
-            rsa_key = {
-                "kty": key["kty"],
-                "kid": key["kid"],
-                "use": key["use"],
-                "n": key["n"],
-                "e": key["e"]
-            }
-
+def jwt_errohandler(rsa_key,token):
     if rsa_key:
         try:
             payload = jwt.decode(
@@ -164,8 +144,36 @@ def verify_decode_jwt(token):
             }, 400)
     raise AuthError({
         "code": "invalid_header",
-        "description": "Unable to find the appropriate key."
+        "description": "Appropriate key not found."
     }, 400)
+    
+
+
+def verify_decode_jwt(token):
+    json_url = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
+    jwks = json.loads(json_url.read())
+    unverified_header = jwt.get_unverified_header(token)
+    rsa_key = {}
+
+    if 'kid' not in unverified_header:
+        raise AuthError({
+            "code": "invalid_header",
+            "description": "Authorization malformed."
+        }, 401)
+
+    for key in jwks["keys"]:
+        if unverified_header["kid"] == key["kid"]:
+            rsa_key = {
+                "kty": key["kty"],
+                "kid": key["kid"],
+                "use": key["use"],
+                "n": key["n"],
+                "e": key["e"]
+            }
+    #Check jwt errrors
+    payload=jwt_errohandler(rsa_key,token)
+    return payload
+
 
 '''
 @TODO implement @requires_auth(permission) decorator method

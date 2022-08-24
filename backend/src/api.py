@@ -51,7 +51,8 @@ def fetch_drinks():
 '''
 
 @app.route("/drinks-detail", methods=['GET'])
-def fetch_drinks_detail():
+@requires_auth("get:drinks-detail")
+def fetch_drinks_detail(payload):
     try:
         drinks = Drink.query.all()
         drinks=[drink.long() for drink in drinks]
@@ -75,25 +76,21 @@ def fetch_drinks_detail():
 @app.route("/drinks", methods=["POST"])
 @requires_auth("post:drinks")
 def add_drink(payload):
-    body = request.json
-    title = body["title"]
-    recipe = body["recipe"]
+    try:
+        body = request.json
+        title = body["title"]
+        recipe = body["recipe"]
 
-    if not title or not recipe:
-        abort(400)
-
-    for item in recipe:
-        color = item["color"]
-        parts = item["parts"]
-        name = item["name"]
-        if not color or not parts or not name:
+        if not title or not recipe:
             abort(400)
 
-    recipe=json.dumps(recipe)
-    drink = Drink(title=title, recipe=recipe)
-    drink.insert()
+        recipe=json.dumps(recipe)
+        drink = Drink(title=title, recipe=recipe)
+        drink.insert()
 
-    return jsonify({"success": True, "drinks": [drink.long()]})
+        return jsonify({"success": True, "drinks": [drink.long()]})
+    except:
+        abort(422)
         
 
 '''
@@ -112,13 +109,11 @@ def add_drink(payload):
 def patch_drink(payload,id):
     drink=Drink.query.get(id)
     if not drink:
-        abort(404)
+        abort(404,"Drink not found")
     try:
         request_body=request.json
         title=request_body["title"]
         recipe=request_body["recipe"]
-        
-        drink.title=title
         drink.recipe = json.dumps(recipe)
         drink.update()
         return jsonify(
@@ -146,7 +141,7 @@ def patch_drink(payload,id):
 '''
 @app.route("/drinks/<id>", methods=["DELETE"])
 @requires_auth("delete:drinks")
-def delete_drink(payload, id):
+def remove_drink(payload, id):
     drink = Drink.query.get(id)
 
     if not drink:
@@ -157,7 +152,7 @@ def delete_drink(payload, id):
         return jsonify({"success": True, "delete": id})
     except:
         db.session.rollback()
-        abort(500)
+        abort(401)
 
   
         
@@ -187,22 +182,17 @@ def unprocessable(error):
 '''
 
 
-
 '''
 @TODO implement error handler for 404
     error handler should conform to general task above
 '''
-# @app.errorhandler(404)
-# def resource_not_found_handler(error):
-
-#         error_response['error'] = 404
-#         error_response['success'] = False
-#         error_response['The requested resource was not found']
-
-#         return jsonify({
-#             error_response
-#         }), 404
-
+@app.errorhandler(404)
+def resource_not_found_handler(error):
+    return jsonify({
+        "success": False,
+        "error": 404,
+        "message": "Resource not found."
+    }),404
 
 
 
@@ -211,3 +201,11 @@ def unprocessable(error):
 @TODO implement error handler for AuthError
     error handler should conform to general task above
 '''
+
+@app.errorhandler(AuthError)
+def authentication_error_handler(error):
+    return jsonify({
+        "success": False,
+        "error": error.status_code,
+        "message": error.error
+    }), error.status_code
